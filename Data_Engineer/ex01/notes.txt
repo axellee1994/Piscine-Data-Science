@@ -1,0 +1,10 @@
+General Tab
+Name: PiscineDS
+
+Connection Tab
+
+Host name/address: localhost
+Port: 5432
+Maintenance database: piscineds
+Username: axlee
+Password: mysecretpassword
