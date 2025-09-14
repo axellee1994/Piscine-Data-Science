@@ -4,28 +4,47 @@ import pandas as pd
 import psycopg2
 import io
 import sys
+import uuid
 
-CUSTOMER_FOLDER = "../ex02/subject/item/"
+CUSTOMER_FOLDER = "../ex02/subject/customer/"
 DB_USER = "axlee"
 DB_NAME = "piscineds"
 DB_PASSWORD = "mysecretpassword"
 DB_PORT = "5432"
 DB_HOST = "localhost"
 
+def is_uuid_column(series):
+    """Return True if all non-null values in the series are valid UUIDs."""
+    return series.dropna().apply(lambda x: isinstance(x, str) and is_uuid(x)).all()
 
-def infer_pg_type(dtype):
+def is_uuid(val):
+    """
+    Check if a value is a valid UUID.
+    """
+    try:
+        uuid.UUID(str(val))
+        return True
+    except Exception:
+        return False
+
+def infer_pg_type(dtype, series=None):
     """
     This functions translates PostgreSQL data types
-    to pandas data types
+    to pandas data types. UUID is handled separately
+    as in pandas it is treated as an object
+    (string) type
     """
     if pd.api.types.is_datetime64_any_dtype(dtype):
         return 'TIMESTAMP'
     elif pd.api.types.is_integer_dtype(dtype):
-        return 'BIGINT'
+        if series is not None and series.max() < 2147483647:
+            return 'INTEGER'
+        else:
+            return 'BIGINT'
     elif pd.api.types.is_float_dtype(dtype):
         return 'NUMERIC'
-    elif pd.api.types.is_bool_dtype(dtype):
-        return 'BOOLEAN'
+    elif series is not None and is_uuid_column(series):
+        return 'UUID'
     else:
         return 'VARCHAR'
 
@@ -37,7 +56,7 @@ def create_table(cursor, table_name, df):
     """
     columns = [f'"{df.columns[0]}" TIMESTAMP']
     for col in df.columns[1:]:
-        columns.append(f'"{col}" {infer_pg_type(df[col].dtype)}')
+        columns.append(f'"{col}" {infer_pg_type(df[col].dtype, df[col])}')
     cursor.execute(f'DROP TABLE IF EXISTS "{table_name}";')
     cursor.execute(f'CREATE TABLE "{table_name}" ({", ".join(columns)});')
 
