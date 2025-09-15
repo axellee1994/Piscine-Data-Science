@@ -95,6 +95,7 @@ def load_and_concat_csvs():
         return None
     return combined_df
 
+
 def create_and_insert_customers(df):
     """Create 'customers' table and insert data."""
     with psycopg2.connect(
@@ -106,6 +107,7 @@ def create_and_insert_customers(df):
             insert_data(cursor, "customers", df)
             print("Data inserted into 'customers'.")
         connection.commit()
+
 
 def process_and_insert_csvs():
     all_csv_files = glob.glob(os.path.join(CUSTOMER_FOLDER, "*.csv"))
@@ -128,6 +130,7 @@ def process_and_insert_csvs():
                 insert_data(cursor, "customers", df)
             print("All data inserted into customers.")
         connection.commit()
+
 
 def main():
     """
