@@ -1,0 +1,1 @@
+# The items_table will be performed in pgadmin4
