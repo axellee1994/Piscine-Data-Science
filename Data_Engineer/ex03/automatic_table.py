@@ -6,7 +6,7 @@ import io
 import sys
 import uuid
 
-CUSTOMER_FOLDER = "../ex02/subject/customer/"
+CUSTOMER_FOLDER = "../ex03/customer/"
 DB_USER = "axlee"
 DB_NAME = "piscineds"
 DB_PASSWORD = "mysecretpassword"
@@ -37,7 +37,7 @@ def infer_pg_type(dtype, series=None):
     if pd.api.types.is_datetime64_any_dtype(dtype):
         return 'TIMESTAMP'
     elif pd.api.types.is_integer_dtype(dtype):
-        if series is not None and series.max() < 2147483647:
+        if series is not None and series.max() < 9999999:
             return 'INTEGER'
         else:
             return 'BIGINT'
