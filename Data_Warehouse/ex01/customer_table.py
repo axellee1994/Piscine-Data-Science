@@ -6,7 +6,7 @@ import io
 import sys
 import uuid
 
-CUSTOMER_FOLDER = "../ex02/customer/"
+CUSTOMER_FOLDER = "../ex01/customer/"
 DB_USER = "axlee"
 DB_NAME = "piscineds"
 DB_PASSWORD = "mysecretpassword"
@@ -81,6 +81,54 @@ def insert_data(cursor, table_name, df):
     buffer.close()
 
 
+def load_and_concat_csvs():
+    """
+    Load and join all multiple CSV files into a single dataframe (optimized).
+    """
+    all_csv_files = glob.glob(os.path.join(CUSTOMER_FOLDER, "*.csv"))
+    if not all_csv_files:
+        return None
+    # Use generator expression for memory efficiency
+    df_iter = (pd.read_csv(f) for f in all_csv_files)
+    combined_df = pd.concat(df_iter, ignore_index=True)
+    if combined_df.empty or combined_df.shape[1] == 0:
+        return None
+    return combined_df
+
+def create_and_insert_customers(df):
+    """Create 'customers' table and insert data."""
+    with psycopg2.connect(
+        user=DB_USER, password=DB_PASSWORD, host=DB_HOST, port=DB_PORT, database=DB_NAME
+    ) as connection:
+        with connection.cursor() as cursor:
+            create_table(cursor, "customers", df)
+            print("Table 'customers' created.")
+            insert_data(cursor, "customers", df)
+            print("Data inserted into 'customers'.")
+        connection.commit()
+
+def process_and_insert_csvs():
+    all_csv_files = glob.glob(os.path.join(CUSTOMER_FOLDER, "*.csv"))
+    if not all_csv_files:
+        print("No CSV files found.")
+        return
+    # Create table from the first CSV
+    first_df = pd.read_csv(all_csv_files[0])
+    with psycopg2.connect(
+        user=DB_USER, password=DB_PASSWORD, host=DB_HOST, port=DB_PORT, database=DB_NAME
+    ) as connection:
+        with connection.cursor() as cursor:
+            create_table(cursor, "customers", first_df)
+            print("Table customers created.")
+            # Insert first CSV
+            insert_data(cursor, "customers", first_df)
+            # Insert remaining CSVs
+            for csv_file in all_csv_files[1:]:
+                df = pd.read_csv(csv_file)
+                insert_data(cursor, "customers", df)
+            print("All data inserted into customers.")
+        connection.commit()
+
 def main():
     """
     Main function that connects to the database,
@@ -88,30 +136,10 @@ def main():
     creates corresponding tables, and inserts data into them.
     """
     try:
-        with psycopg2.connect(
-            user=DB_USER, password=DB_PASSWORD, host=DB_HOST, port=DB_PORT, database=DB_NAME
-        ) as connection:
-            with connection.cursor() as cursor:
-                for file in glob.glob(os.path.join(CUSTOMER_FOLDER, "*.csv")):
-                    print("CSV files found:", file)
-                    table_name = os.path.splitext(os.path.basename(file))[0]
-                    print(f"Processing {table_name}...")
-                    df = pd.read_csv(file)
-                    if df.empty or df.shape[1] == 0:
-                        print(
-                            f"Error: {file} is empty or has no columns. Skipping it")
-                        continue
-                    print(f"Rows to insert: {len(df)}")
-                    df[df.columns[0]] = pd.to_datetime(
-                        df[df.columns[0]], errors='coerce')
-                    create_table(cursor, table_name, df)
-                    print(f"Table {table_name} created.")
-                    insert_data(cursor, table_name, df)
-                    print(f"Data inserted into {table_name}.")
-                connection.commit()
-        print("Tables created")
+        process_and_insert_csvs()
+        print("Table created and populated correctly")
     except Exception as e:
-        print(f"Error during database operation: {e}", file=sys.stderr)
+        print(f"Error loading CSV files: {e}")
 
 
 if __name__ == "__main__":

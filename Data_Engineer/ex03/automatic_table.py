@@ -13,9 +13,14 @@ DB_PASSWORD = "mysecretpassword"
 DB_PORT = "5432"
 DB_HOST = "localhost"
 
+
 def is_uuid_column(series):
     """Return True if all non-null values in the series are valid UUIDs."""
-    return series.dropna().apply(lambda x: isinstance(x, str) and is_uuid(x)).all()
+    for x in series.dropna():
+        if not (isinstance(x, str) and is_uuid(x)):
+            return False
+    return True
+
 
 def is_uuid(val):
     """
@@ -26,6 +31,7 @@ def is_uuid(val):
         return True
     except Exception:
         return False
+
 
 def infer_pg_type(dtype, series=None):
     """
@@ -92,7 +98,8 @@ def main():
                     print(f"Processing {table_name}...")
                     df = pd.read_csv(file)
                     if df.empty or df.shape[1] == 0:
-                        print(f"Error: {file} is empty or has no columns. Skipping it")
+                        print(
+                            f"Error: {file} is empty or has no columns. Skipping it")
                         continue
                     print(f"Rows to insert: {len(df)}")
                     df[df.columns[0]] = pd.to_datetime(
