@@ -47,7 +47,16 @@ def drop_duplicates_in_customers():
         with connection.cursor() as cursor:
             cursor.execute("""
                 CREATE TEMPORARY TABLE temp_customers AS
-                SELECT DISTINCT * FROM customers;
+                SELECT *
+                FROM (
+                    SELECT *,
+                        event_time - LAG(event_time) OVER (
+                            PARTITION BY event_type, product_id, price, user_id, user_session
+                            ORDER BY event_time
+                        ) AS time_diff
+                    FROM customers
+                ) sub
+                WHERE time_diff IS NULL OR EXTRACT(EPOCH FROM time_diff) > 1;
             """)
             cursor.execute("TRUNCATE customers;")
             cursor.execute("INSERT INTO customers SELECT * FROM temp_customers;")
