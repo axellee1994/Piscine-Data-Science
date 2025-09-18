@@ -1,76 +1,55 @@
 import psycopg2
 
-CUSTOMER_FOLDER = "../ex01/customer/"
-DB_USER = "axlee"
 DB_NAME = "piscineds"
+DB_USER = "axlee"
 DB_PASSWORD = "mysecretpassword"
-DB_PORT = "5432"
 DB_HOST = "localhost"
+DB_PORT = "5432"
+SQL_FILE = "remove_duplicates.sql"
 
-
-def find_duplicates_in_customers():
+def connect_to_postgresql(db_params):
     """
-    Detect duplicate entries in the 'customers' table by email.
-    Returns a list of duplicate emails.
+    To connect to PostgreSQL database
     """
-    with psycopg2.connect(
-            user=DB_USER,
-            password=DB_PASSWORD,
-            host=DB_HOST,
-            port=DB_PORT,
-            database=DB_NAME) as connection:
-        with connection.cursor() as cursor:
-            query = """
-            SELECT *, COUNT(*) as count
-            FROM customers
-            GROUP BY event_time, event_type, product_id, price, user_id, user_session
-            HAVING COUNT(*) > 1;
-            """
-            cursor.execute(query)
-            duplicates = cursor.fetchall()
-            if duplicates:
-                print("Duplicate emails found:")
-                for row in duplicates:
-                    print(row)
-            else:
-                print("No duplicate emails found.")
-            return duplicates
-
-
-def drop_duplicates_in_customers():
-    """
-    Remove duplicate entries from the 'customers' table based on all columns using a temporary table.
-    """
-    with psycopg2.connect(
-        user=DB_USER, password=DB_PASSWORD, host=DB_HOST, port=DB_PORT, database=DB_NAME
-    ) as connection:
-        with connection.cursor() as cursor:
-            cursor.execute("""
-                CREATE TEMPORARY TABLE temp_customers AS
-                SELECT *
-                FROM (
-                    SELECT *,
-                        event_time - LAG(event_time) OVER (
-                            PARTITION BY event_type, product_id, price, user_id, user_session
-                            ORDER BY event_time
-                        ) AS time_diff
-                    FROM customers
-                ) sub
-                WHERE time_diff IS NULL OR EXTRACT(EPOCH FROM time_diff) > 1;
-            """)
-            cursor.execute("TRUNCATE customers;")
-            cursor.execute("INSERT INTO customers SELECT * FROM temp_customers;")
-            print("Duplicates removed from 'customers' table using temporary table.")
-        connection.commit()
-
-
-def main():
+    connection = None
     try:
-        find_duplicates_in_customers()
-        drop_duplicates_in_customers()
-        print("Duplicates removed successfully.")
+        connection = psycopg2.connect(**db_params)
+        print("Connection to PostgreSQL DB successful")
+        return connection
     except Exception as e:
-        print(f"Error removing duplicates: {e}")
+        print(f"The error '{e}' occurred")
+        return None
+
+def execute_sql_file(connection, sql_file_path):
+    """
+    Execute SQL commands from a file
+    """
+    if not connection:
+        print("No valid database connection.")
+        return
+    try:
+        with connection.cursor() as cursor:
+            with open(sql_file_path, 'r') as file:
+                sql_script = file.read()
+            cursor.execute(sql_script)
+            connection.commit()
+            print(f"SQL script '{sql_file_path}' executed successfully")
+    except Exception as e:
+        print(f"Error executing SQL script: {e}")
 
 if __name__ == "__main__":
-    main()
+    db_params = {
+        "dbname": DB_NAME,
+        "user": DB_USER,
+        "password": DB_PASSWORD,
+        "host": DB_HOST,
+        "port": DB_PORT
+    }
+    connection = connect_to_postgresql(db_params)
+    execute_sql_file(connection, SQL_FILE)
+    try:
+        if connection:
+            connection.close()
+            print("Database connection closed")
+    except Exception as e:
+        print(f"Error closing connection: {e}")

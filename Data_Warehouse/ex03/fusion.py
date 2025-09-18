@@ -5,7 +5,7 @@ DB_USER = "axlee"
 DB_PASSWORD = "mysecretpassword"
 DB_HOST = "localhost"
 DB_PORT = "5432"
-SQL_FILE = "customer_table.sql"
+SQL_FILE = "fusion.sql"
 
 def connect_to_postgresql(db_params):
     """
